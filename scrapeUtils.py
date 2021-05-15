@@ -1,6 +1,8 @@
 import requests
 import datetime
 from mathHelp import getHourAndMinuteFromString, isDaylightSavingsTime
+import cryptoSymbols
+import time
 
 exchangeOpenClose = {
     "NYSE" : {
@@ -21,6 +23,7 @@ exchangeOpenClose = {
 }
 
 def getPrice(symbol):
+    time.sleep(0.5)
     exchanges = [
         'NYSE',
         'NASDAQ',
@@ -34,14 +37,11 @@ def getPrice(symbol):
         if data.find("No results found") != -1:
             continue
         else:
-            break
-    if data.find("No results found") != -1:
-        return getCryptoPrice(symbol)
-    else:    
-        priceDivIdx = data.find('<div class="YMlKec fxKbKc">')
-        substring = data[priceDivIdx+28:priceDivIdx+40]
-        substring = substring[0:substring.find('<')]
-        return substring
+            break   
+    priceDivIdx = data.find('<div class="YMlKec fxKbKc">')
+    substring = data[priceDivIdx+28:priceDivIdx+40]
+    substring = substring[0:substring.find('<')]
+    return float(substring)
 
 def exchangeIsOpen(exchange):
     global exchangeOpenClose
@@ -61,6 +61,22 @@ def exchangeIsOpen(exchange):
 
 
 def getCryptoPrice(symbol):
-    return "Unable to find price"
+    time.sleep(0.5)
+    pathParam = str(symbol).lower()
+    if symbol in cryptoSymbols.SYMBOL_TO_NAME:
+        pathParam = cryptoSymbols.SYMBOL_TO_NAME[symbol].lower()
+    url = 'https://coinmarketcap.com/currencies/' + pathParam + '/'
+    print(url)
+    response = requests.get(url)
+    data = str(response.content)
+    if data.find("Sorry, we couldn't find your page") != -1:
+        return "Unable to find price for " + symbol
+    priceDivIdx = data.find("priceValue___11gHJ")
+    if priceDivIdx != -1:
+        substring = data[priceDivIdx+21:priceDivIdx+40]
+        substring = substring[0:substring.find('<')]
+        substring = substring.replace(',','')
+        return float(substring)
+    return "Unable to find price for " + symbol
 
     
