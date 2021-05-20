@@ -12,7 +12,8 @@ commands = [
     "$sell-crypto",
     "$crypto-quote",
     "$help",
-    "$start-trading"
+    "$start-trading",
+    "$leaderboard"
 ]
 
 def isValidCommand(command):
@@ -71,9 +72,34 @@ async def executeCommand(command, message):
         else:
             await message.channel.send("Unable to fetch price for " + symbol)
     if command == '$buy-crypto':
-        return True
+        if not database.investorExists(username):
+            await message.channel.send("You need to ask at the Small-Loans desk for $100000 to start trading: $start-trading will get the ball rolling for you")
+        else:
+            args = getSymbolAndQuantityFromMessage(content)
+            symbol = args['symbol']
+            quantity = args['quantity']
+            price = getCryptoPrice(symbol)
+            cost = quantity * price
+            money = database.getDollars(username)
+            if money > cost:
+                database.openPosition(database.getPortfolioID(database.getInvestorID(username), True), symbol, quantity)
+                database.setDollars(username, money - cost)
+                await message.channel.send("Purchasing " + str(quantity) + " of " + symbol + " at $" + str(price) + ". You now have $" + str(money-cost) + " on hand")
+
     if command == '$sell-crypto':
-        return True
+        if not database.investorExists(username):
+            await message.channel.send("You need to ask at the Small-Loans desk for $100000 to start trading: $start-trading will get the ball rolling for you")
+        else:
+            args = getSymbolAndQuantityFromMessage(content)
+            symbol = args['symbol']
+            quantity = args['quantity']
+            if database.closePosition(database.getPortfolioID(database.getInvestorID(username), True), symbol, quantity):
+                price = getCryptoPrice(symbol)
+                money = database.getDollars(username)
+                database.setDollars(username, money + (price * quantity))
+                await message.channel.send("Sold " + str(quantity) + " of " + symbol + " at $" + str(price) + ". You now have $" + str( money + (price * quantity)) + " on hand")
+            else:
+                await message.channel.send("Insufficient quantity of " + symbol + " on hand.")
     if command == '$crypto-quote':
         symbol = str(content[content.find(" ")+1:])
         price = getCryptoPrice(symbol)
@@ -89,3 +115,25 @@ async def executeCommand(command, message):
         else:
             database.createInvestor(username)
             await message.channel.send("Congratulations " + message.author.name + ". You are now a PaperHands Trader! You have $100,000 to invest.")
+    if command == "$leaderboard":
+        leaderboard = ''
+        dataArray = []
+        for member in message.guild.members:
+            memberUsername = member.name + "#" + member.discriminator
+            if(database.investorExists(memberUsername)):
+                data = {}
+                investorID = database.getInvestorID(memberUsername)
+                cryptoPortfolioID = database.getPortfolioID(investorID, True)
+                stockPortfolioID = database.getPortfolioID(investorID, False)
+                data['username'] = memberUsername
+                data['dollars'] = database.getDollars(memberUsername)
+                data['cryptoValue'] = database.getPortfolioValue(cryptoPortfolioID, True)
+                data['stockValue'] = database.getPortfolioValue(stockPortfolioID, False)
+                data['totalValue'] = data['dollars'] + data['cryptoValue'] + data['stockValue']
+                dataArray.append(data)
+        def getKeyForSorting(input):
+            return input['totalValue']
+        dataArray.sort(key=getKeyForSorting)
+        for obj in dataArray:
+            leaderboard += "\n" + obj['username'] + "\n\ttotal: " + str(obj['totalValue']) + "\n\tdollars: " + str(obj['dollars']) + "\n\tstocks: " + str(obj['stockValue']) + "\n\tcrypto: " + str(obj['cryptoValue']) + "\n"
+        await message.channel.send("Leaderboard for " + message.guild.name + "\n" + leaderboard)

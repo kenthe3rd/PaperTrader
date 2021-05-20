@@ -1,6 +1,6 @@
 import sqlite3
 import os
-
+from scrapeUtils import getCryptoPrice, getPrice
 class DatabaseManager:
 
     def openPosition(self, portfolio, symbol, quantity):
@@ -124,3 +124,21 @@ class DatabaseManager:
         cursor.execute(query, params)
         conn.commit()
         conn.close()
+
+    def getPortfolioValue(self, portfolioID, isCrypto):
+        output = 0
+        conn = self.getConnection()
+        cursor = conn.cursor()
+        query = "SELECT symbol, quantity FROM positions WHERE portfolio_id = ?;"
+        params = [portfolioID]
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        if isCrypto:
+            for row in rows:
+                price = getCryptoPrice(row[0])
+                output += price * row[1]
+        else:
+            for row in rows:
+                price = getPrice(row[0])
+                output += price * row[1]
+        return output
