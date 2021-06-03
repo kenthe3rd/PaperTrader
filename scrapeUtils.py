@@ -31,7 +31,6 @@ def getPrice(symbol):
     ]
     for exchange in exchanges:
         url = 'https://google.com/finance/quote/' + symbol + ":" + exchange
-        print(url)
         response = requests.get(url)
         data = str(response.content)
         if data.find("No results found") != -1:
@@ -66,7 +65,6 @@ def getCryptoPrice(symbol):
     if symbol in cryptoSymbols.SYMBOL_TO_NAME:
         pathParam = cryptoSymbols.SYMBOL_TO_NAME[symbol].lower()
     url = 'https://coinmarketcap.com/currencies/' + pathParam + '/'
-    print(url)
     response = requests.get(url)
     data = str(response.content)
     if data.find("Sorry, we couldn't find your page") != -1:
